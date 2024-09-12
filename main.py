@@ -1,14 +1,21 @@
 import os
+import sys
 import random
+import logging
+import schedule
+import time
 from collections import defaultdict
+from threading import Thread
 import telebot
 import instaloader
 from flask import Flask
-from threading import Thread
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
+
+# Configure logging
+logging.basicConfig(filename='bot.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Flask app to keep the bot alive
 app = Flask('')
@@ -106,7 +113,7 @@ def get_public_instagram_info(username):
     except instaloader.exceptions.ProfileNotExistsException:
         return None
     except instaloader.exceptions.InstaloaderException as e:
-        print(f"An error occurred: {e}")
+        logging.error(f"An error occurred: {e}")
         return None
 
 def is_user_in_channel(user_id):
@@ -147,7 +154,7 @@ def analyze(message):
     profile_info = get_public_instagram_info(username)
     if profile_info:
         reports_to_file = analyze_profile(profile_info)
-        
+
         result_text = f"**Public Information for {username}:\n"
         result_text += f"Username: {profile_info.get('username', 'N/A')}\n"
         result_text += f"Full Name: {profile_info.get('full_name', 'N/A')}\n"
@@ -167,7 +174,7 @@ def analyze(message):
         # Include inline buttons
         markup = telebot.types.InlineKeyboardMarkup()
         markup.add(telebot.types.InlineKeyboardButton("Visit Profile", url=f"https://instagram.com/{profile_info['username']}"))
-        markup.add(telebot.types.InlineKeyboardButton("Developer", callback_data='t.me/ifeelscam'))
+        markup.add(telebot.types.InlineKeyboardButton("Developer", url='t.me/ifeelscam'))
 
         bot.send_message(message.chat.id, result_text, reply_markup=markup, parse_mode='Markdown')
     else:
@@ -189,7 +196,7 @@ def broadcast(message):
         try:
             bot.send_message(user, broadcast_message)
         except Exception as e:
-            print(f"Failed to send message to {user}: {e}")
+            logging.error(f"Failed to send message to {user}: {e}")
 
 @bot.message_handler(commands=['users'])
 def list_users(message):
@@ -219,6 +226,18 @@ def remove_user_command(message):
     remove_user(user_id)
     bot.reply_to(message, f"User ID {user_id} has been removed.")
 
+@bot.message_handler(commands=['restart'])
+def restart_bot(message):
+    if str(message.chat.id) != ADMIN_ID:
+        bot.reply_to(message, "You are not authorized to use this command.")
+        return
+
+    bot.reply_to(message, "Bot is restarting...")
+    logging.info("Bot is restarting...")
+    
+    # Restart the bot by reloading the script
+    os.execv(sys.executable, ['python'] + sys.argv)
+
 @bot.callback_query_handler(func=lambda call: call.data == 'reload')
 def reload_callback(call):
     user_id = call.from_user.id
@@ -228,7 +247,23 @@ def reload_callback(call):
     else:
         bot.answer_callback_query(call.id, text="You are not a member of the channel yet. Please join the channel first.")
 
+def auto_restart():
+    logging.info("Scheduled bot restart initiated.")
+    os.execv(sys.executable, ['python'] + sys.argv)
+
+# Schedule the bot to restart every 5 minutes
+schedule.every(5).minutes.do(auto_restart)
+
 if __name__ == "__main__":
     print("Starting the bot...")
-    bot.polling()
-        
+    logging.info("Bot started.")
+    
+    # Start the bot polling in a separate thread
+    t = Thread(target=bot.polling)
+    t.start()
+
+    # Start the scheduling loop
+    while True:
+        schedule.run_pending()
+        time.sleep(1)
+    
