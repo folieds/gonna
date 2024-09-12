@@ -128,7 +128,7 @@ def start(message):
     if not is_user_in_channel(user_id):
         markup = telebot.types.InlineKeyboardMarkup()
         markup.add(telebot.types.InlineKeyboardButton("Join Channel", url=f"https://t.me/{FORCE_JOIN_CHANNEL}"))
-        markup.add(telebot.types.InlineKeyboardButton("Reload", callback_data='reload'))
+        markup.add(telebot.types.InlineKeyboardButton("Joined", callback_data='reload'))
         bot.reply_to(message, f"Please join @{FORCE_JOIN_CHANNEL} to use this bot.", reply_markup=markup)
         return
     
@@ -137,6 +137,7 @@ def start(message):
     # Create the inline keyboard with an additional button
     markup = telebot.types.InlineKeyboardMarkup()
     markup.add(telebot.types.InlineKeyboardButton("Help", callback_data='help'))
+    markup.add(telebot.types.InlineKeyboardButton("Update Channel", url='t.me/team_loops'))
     
     bot.reply_to(message, "Welcome! Use /getmeth <username> to analyze an Instagram profile.", reply_markup=markup)
 
@@ -169,7 +170,7 @@ def analyze(message):
         result_text += f"Posts: {profile_info.get('post_count', 'N/A')}\n"
         result_text += f"External URL: {profile_info.get('external_url', 'N/A')}\n\n"
 
-        result_text += "Suggested Reports to File:\n"
+        result_text += "Suggested Reports for Your Target:\n"
         for report in reports_to_file.values():
             result_text += f"• {report}\n"
 
@@ -177,8 +178,8 @@ def analyze(message):
 
         # Include inline buttons
         markup = telebot.types.InlineKeyboardMarkup()
-        markup.add(telebot.types.InlineKeyboardButton("Visit Profile", url=f"https://instagram.com/{profile_info['username']}"))
-        markup.add(telebot.types.InlineKeyboardButton("Developer", callback_data='t.me/ifeelscam'))
+        markup.add(telebot.types.InlineKeyboardButton("Visit Target Profile", url=f"https://instagram.com/{profile_info['username']}"))
+        markup.add(telebot.types.InlineKeyboardButton("Developer", url='t.me/ifeelscam'))
 
         bot.send_message(message.chat.id, result_text, reply_markup=markup, parse_mode='Markdown')
     else:
