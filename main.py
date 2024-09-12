@@ -33,6 +33,18 @@ FORCE_JOIN_CHANNEL = os.getenv("FORCE_JOIN_CHANNEL")
 ADMIN_ID = os.getenv("ADMIN_ID")
 bot = telebot.TeleBot(API_TOKEN)
 
+# In-memory list to store user IDs
+user_ids = set()
+
+def add_user(user_id):
+    user_ids.add(user_id)
+
+def remove_user(user_id):
+    user_ids.discard(user_id)
+
+def get_all_users():
+    return list(user_ids)
+
 # List of keywords for different report categories
 report_keywords = {
     "HATE": ["devil", "666", "savage", "love", "hate", "followers", "selling", "sold", "seller", "dick", "ban", "banned", "free", "method", "paid"],
@@ -108,9 +120,13 @@ def is_user_in_channel(user_id):
 def start(message):
     user_id = message.chat.id
     if not is_user_in_channel(user_id):
-        bot.reply_to(message, f"Please join @{FORCE_JOIN_CHANNEL} to use this bot.")
+        markup = telebot.types.InlineKeyboardMarkup()
+        markup.add(telebot.types.InlineKeyboardButton("Join Channel", url=f"https://t.me/{FORCE_JOIN_CHANNEL}"))
+        markup.add(telebot.types.InlineKeyboardButton("Reload", callback_data='reload'))
+        bot.reply_to(message, f"Please join @{FORCE_JOIN_CHANNEL} to use this bot.", reply_markup=markup)
         return
     
+    add_user(user_id)  # Add user to the list
     bot.reply_to(message, "Welcome! Use /getmeth <username> to analyze an Instagram profile.")
 
 @bot.message_handler(commands=['getmeth'])
@@ -168,14 +184,51 @@ def broadcast(message):
         bot.reply_to(message, "Please provide a message to broadcast.")
         return
 
-    users = get_all_users()  # You need to implement this function to get all users from the database
+    users = get_all_users()
     for user in users:
         try:
             bot.send_message(user, broadcast_message)
         except Exception as e:
             print(f"Failed to send message to {user}: {e}")
 
+@bot.message_handler(commands=['users'])
+def list_users(message):
+    if str(message.chat.id) != ADMIN_ID:
+        bot.reply_to(message, "You are not authorized to use this command.")
+        return
+
+    users = get_all_users()
+    if users:
+        user_list = "\n".join([f"User ID: {user_id}" for user_id in users])
+        bot.reply_to(message, f"List of Users:\n{user_list}")
+    else:
+        bot.reply_to(message, "No users found.")
+
+@bot.message_handler(commands=['remove_user'])
+def remove_user_command(message):
+    if str(message.chat.id) != ADMIN_ID:
+        bot.reply_to(message, "You are not authorized to use this command.")
+        return
+
+    user_id = message.text.split()[1:]  # Get user ID from command
+    if not user_id:
+        bot.reply_to(message, "Please provide a user ID.")
+        return
+
+    user_id = int(user_id[0])
+    remove_user(user_id)
+    bot.reply_to(message, f"User ID {user_id} has been removed.")
+
+@bot.callback_query_handler(func=lambda call: call.data == 'reload')
+def reload_callback(call):
+    user_id = call.from_user.id
+    if is_user_in_channel(user_id):
+        bot.answer_callback_query(call.id, text="You are now authorized to use the bot!")
+        bot.send_message(user_id, "You are now authorized to use the bot. Use /getmeth <username> to analyze an Instagram profile.")
+    else:
+        bot.answer_callback_query(call.id, text="You are not a member of the channel yet. Please join the channel first.")
+
 if __name__ == "__main__":
     print("Starting the bot...")
     bot.polling()
-    
+        
