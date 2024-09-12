@@ -153,7 +153,7 @@ def analyze(message):
         return
 
     username = ' '.join(username)
-    bot.reply_to(message, f"🔍 Analyzing profile: {username}. Please wait...")
+    bot.reply_to(message, f"🔍 Scaning Your Target profile: {username}. Please wait...")
 
     profile_info = get_public_instagram_info(username)
     if profile_info:
