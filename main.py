@@ -6,6 +6,7 @@ import instaloader
 from flask import Flask
 from threading import Thread
 from dotenv import load_dotenv
+import sqlite3
 
 load_dotenv()  # Load environment variables from .env file
 
@@ -30,6 +31,12 @@ keep_alive()
 API_TOKEN = os.getenv("API_TOKEN")
 bot = telebot.TeleBot(API_TOKEN)
 
+# Database setup
+conn = sqlite3.connect('users.db', check_same_thread=False)
+cursor = conn.cursor()
+cursor.execute('''CREATE TABLE IF NOT EXISTS users (user_id INTEGER PRIMARY KEY)''')
+conn.commit()
+
 # List of keywords for different report categories
 report_keywords = {
     "HATE": ["devil", "666", "savage", "love", "hate", "followers", "selling", "sold", "seller", "dick", "ban", "banned", "free", "method", "paid"],
@@ -41,6 +48,9 @@ report_keywords = {
     "NUDITY": ["nude", "sex", "send nudes"],
     "SPAM": ["phone number"]
 }
+
+FORCE_JOIN_CHANNEL = os.getenv("FORCE_JOIN_CHANNEL")
+ADMIN_ID = int(os.getenv("ADMIN_ID"))
 
 def check_keywords(text, keywords):
     return any(keyword in text.lower() for keyword in keywords)
@@ -94,12 +104,34 @@ def get_public_instagram_info(username):
         print(f"An error occurred: {e}")
         return None
 
+def force_join(message):
+    user_id = message.from_user.id
+    try:
+        member = bot.get_chat_member(FORCE_JOIN_CHANNEL, user_id)
+        if member.status not in ['member', 'administrator', 'creator']:
+            bot.send_message(message.chat.id, f"Please join [this channel](https://t.me/{FORCE_JOIN_CHANNEL}) to use the bot.", parse_mode="Markdown")
+            return False
+        return True
+    except Exception as e:
+        bot.send_message(message.chat.id, f"Error: {str(e)}")
+        return False
+
+def register_user(user_id):
+    cursor.execute("INSERT OR IGNORE INTO users (user_id) VALUES (?)", (user_id,))
+    conn.commit()
+
 @bot.message_handler(commands=['start'])
 def start(message):
+    if not force_join(message):
+        return
+    user_id = message.from_user.id
+    register_user(user_id)
     bot.reply_to(message, "Welcome! Use /getmeth <username> to analyze an Instagram profile.")
 
 @bot.message_handler(commands=['getmeth'])
 def analyze(message):
+    if not force_join(message):
+        return
     username = message.text.split()[1:]  # Get username from command
     if not username:
         bot.reply_to(message, "Please provide an Instagram username.")
@@ -111,7 +143,7 @@ def analyze(message):
     profile_info = get_public_instagram_info(username)
     if profile_info:
         reports_to_file = analyze_profile(profile_info)
-        
+
         result_text = f"**Public Information for {username}:\n"
         result_text += f"Username: {profile_info.get('username', 'N/A')}\n"
         result_text += f"Full Name: {profile_info.get('full_name', 'N/A')}\n"
@@ -131,11 +163,35 @@ def analyze(message):
         # Include inline buttons
         markup = telebot.types.InlineKeyboardMarkup()
         markup.add(telebot.types.InlineKeyboardButton("Visit Profile", url=f"https://instagram.com/{profile_info['username']}"))
-        markup.add(telebot.types.InlineKeyboardButton("Devloper", callback_data='t.me/ifeelscam'))
+        markup.add(telebot.types.InlineKeyboardButton("Developer", url='t.me/ifeelscam'))
 
         bot.send_message(message.chat.id, result_text, reply_markup=markup, parse_mode='Markdown')
     else:
         bot.reply_to(message, f"❌ Profile {username} not found or an error occurred.")
+
+@bot.message_handler(commands=['totalusers'])
+def total_users(message):
+    if message.from_user.id == ADMIN_ID:
+        cursor.execute("SELECT COUNT(*) FROM users")
+        count = cursor.fetchone()[0]
+        bot.reply_to(message, f"Total users: {count}")
+    else:
+        bot.reply_to(message, "You are not authorized to use this command.")
+
+@bot.message_handler(commands=['broadcast'])
+def broadcast(message):
+    if message.from_user.id == ADMIN_ID:
+        text = ' '.join(message.text.split()[1:])
+        cursor.execute("SELECT user_id FROM users")
+        users = cursor.fetchall()
+        for user in users:
+            try:
+                bot.send_message(user[0], text)
+            except Exception as e:
+                print(f"Error sending message to {user[0]}: {str(e)}")
+        bot.reply_to(message, "Broadcast sent.")
+    else:
+        bot.reply_to(message, "You are not authorized to use this command.")
 
 if __name__ == "__main__":
     print("Starting the bot...")
