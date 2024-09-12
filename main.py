@@ -17,17 +17,17 @@ load_dotenv()
 logging.basicConfig(filename='bot.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Flask app to keep the bot alive
-app = Flask('')
+app = Flask(__name__)
 
 @app.route('/')
 def home():
     return "I'm alive"
 
-def run():
+def run_flask_app():
     app.run(host='0.0.0.0', port=8080)
 
 def keep_alive():
-    t = Thread(target=run)
+    t = Thread(target=run_flask_app)
     t.start()
 
 # Start the Flask app in a thread
@@ -37,6 +37,7 @@ keep_alive()
 API_TOKEN = os.getenv("API_TOKEN")
 FORCE_JOIN_CHANNEL = os.getenv("FORCE_JOIN_CHANNEL")
 ADMIN_ID = os.getenv("ADMIN_ID")
+
 bot = telebot.TeleBot(API_TOKEN)
 
 # In-memory list to store user IDs
@@ -119,7 +120,7 @@ def is_user_in_channel(user_id):
     try:
         member = bot.get_chat_member(f"@{FORCE_JOIN_CHANNEL}", user_id)
         return member.status in ['member', 'administrator', 'creator']
-    except:
+    except telebot.apihelper.ApiException:
         return False
 
 @bot.message_handler(commands=['start'])
@@ -131,14 +132,11 @@ def start(message):
         markup.add(telebot.types.InlineKeyboardButton("Joined", callback_data='reload'))
         bot.reply_to(message, f"Please join @{FORCE_JOIN_CHANNEL} to use this bot.", reply_markup=markup)
         return
-    
+
     add_user(user_id)  # Add user to the list
-    
-    # Create the inline keyboard with an additional button
     markup = telebot.types.InlineKeyboardMarkup()
     markup.add(telebot.types.InlineKeyboardButton("Help", callback_data='help'))
     markup.add(telebot.types.InlineKeyboardButton("Update Channel", url='t.me/team_loops'))
-    
     bot.reply_to(message, "Welcome! Use /getmeth <username> to analyze an Instagram profile.", reply_markup=markup)
 
 @bot.message_handler(commands=['getmeth'])
@@ -154,12 +152,11 @@ def analyze(message):
         return
 
     username = ' '.join(username)
-    bot.reply_to(message, f"🔍 Scaning Your Target profile: {username}. Please wait...")
+    bot.reply_to(message, f"🔍 Scanning profile: {username}. Please wait...")
 
     profile_info = get_public_instagram_info(username)
     if profile_info:
         reports_to_file = analyze_profile(profile_info)
-
         result_text = f"**Public Information for {username}:\n"
         result_text += f"Username: {profile_info.get('username', 'N/A')}\n"
         result_text += f"Full Name: {profile_info.get('full_name', 'N/A')}\n"
@@ -169,14 +166,11 @@ def analyze(message):
         result_text += f"Private Account: {'Yes' if profile_info.get('is_private') else 'No'}\n"
         result_text += f"Posts: {profile_info.get('post_count', 'N/A')}\n"
         result_text += f"External URL: {profile_info.get('external_url', 'N/A')}\n\n"
-
         result_text += "Suggested Reports for Your Target:\n"
         for report in reports_to_file.values():
             result_text += f"• {report}\n"
+        result_text += "\n*Note: This method is based on available data and may not be fully accurate.*\n"
 
-        result_text += "\n*Note: This Method is based on available data and may not be fully accurate.*\n"
-
-        # Include inline buttons
         markup = telebot.types.InlineKeyboardMarkup()
         markup.add(telebot.types.InlineKeyboardButton("Visit Target Profile", url=f"https://instagram.com/{profile_info['username']}"))
         markup.add(telebot.types.InlineKeyboardButton("Developer", url='t.me/ifeelscam'))
@@ -239,8 +233,6 @@ def restart_bot(message):
 
     bot.reply_to(message, "Bot is restarting...")
     logging.info("Bot is restarting...")
-    
-    # Restart the bot by reloading the script
     os.execv(sys.executable, ['python'] + sys.argv)
 
 @bot.callback_query_handler(func=lambda call: call.data == 'reload')
@@ -264,8 +256,8 @@ def help_callback(call):
 if __name__ == "__main__":
     print("Starting the bot...")
     logging.info("Bot started.")
-    
+
     # Start the bot polling in a separate thread
     t = Thread(target=bot.polling)
     t.start()
-    
+        
