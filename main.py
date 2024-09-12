@@ -160,11 +160,11 @@ def analyze(message):
 
     username = message.text.split()[1:]  # Get username from command
     if not username:
-        bot.reply_to(message, "Please provide an Instagram username.")
+        bot.reply_to(message, "😾 Worong method Please send like this /getmeth Username without @ & < >  Send your Target username.")
         return
 
     username = ' '.join(username)
-    bot.reply_to(message, f"🔍 Scanning profile: {username}. Please wait...")
+    bot.reply_to(message, f"🔍 Scanning Your Target Profile: {username}. Please wait...")
 
     profile_info = get_public_instagram_info(username)
     if profile_info:
