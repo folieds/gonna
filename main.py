@@ -2,7 +2,6 @@ import os
 import sys
 import random
 import logging
-import schedule
 import time
 from collections import defaultdict
 from threading import Thread
@@ -134,7 +133,12 @@ def start(message):
         return
     
     add_user(user_id)  # Add user to the list
-    bot.reply_to(message, "Welcome! Use /getmeth <username> to analyze an Instagram profile.")
+    
+    # Create the inline keyboard with an additional button
+    markup = telebot.types.InlineKeyboardMarkup()
+    markup.add(telebot.types.InlineKeyboardButton("Help", callback_data='help'))
+    
+    bot.reply_to(message, "Welcome! Use /getmeth <username> to analyze an Instagram profile.", reply_markup=markup)
 
 @bot.message_handler(commands=['getmeth'])
 def analyze(message):
@@ -174,7 +178,7 @@ def analyze(message):
         # Include inline buttons
         markup = telebot.types.InlineKeyboardMarkup()
         markup.add(telebot.types.InlineKeyboardButton("Visit Profile", url=f"https://instagram.com/{profile_info['username']}"))
-        markup.add(telebot.types.InlineKeyboardButton("Developer", url='t.me/ifeelscam'))
+        markup.add(telebot.types.InlineKeyboardButton("Developer", callback_data='t.me/ifeelscam'))
 
         bot.send_message(message.chat.id, result_text, reply_markup=markup, parse_mode='Markdown')
     else:
@@ -247,12 +251,14 @@ def reload_callback(call):
     else:
         bot.answer_callback_query(call.id, text="You are not a member of the channel yet. Please join the channel first.")
 
-def auto_restart():
-    logging.info("Scheduled bot restart initiated.")
-    os.execv(sys.executable, ['python'] + sys.argv)
-
-# Schedule the bot to restart every 5 minutes
-schedule.every(5).minutes.do(auto_restart)
+@bot.callback_query_handler(func=lambda call: call.data == 'help')
+def help_callback(call):
+    bot.answer_callback_query(call.id, text="Here's how you can use this bot:\n\n"
+                                           "/getmeth <username> - Analyze an Instagram profile.\n"
+                                           "Make sure you are a member of the channel to use this bot.")
+    bot.send_message(call.from_user.id, "Here's how you can use this bot:\n\n"
+                                         "/getmeth <username> - Analyze an Instagram profile.\n"
+                                         "Make sure you are a member of the channel to use this bot.")
 
 if __name__ == "__main__":
     print("Starting the bot...")
@@ -261,9 +267,4 @@ if __name__ == "__main__":
     # Start the bot polling in a separate thread
     t = Thread(target=bot.polling)
     t.start()
-
-    # Start the scheduling loop
-    while True:
-        schedule.run_pending()
-        time.sleep(1)
     
