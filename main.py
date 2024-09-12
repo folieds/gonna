@@ -147,7 +147,7 @@ def analyze(message):
 
     username = message.text.split()[1:]  # Get username from command
     if not username:
-        bot.reply_to(message, "😾 Worong method Please send like this <code>/getmeth Username</code> Without @ & < >  Send your Target username.")
+        bot.reply_to(message, "Please provide an Instagram username.")
         return
 
     username = ' '.join(username)
@@ -167,7 +167,7 @@ def analyze(message):
         result_text += f"External URL: {profile_info.get('external_url', 'N/A')}\n\n"
         result_text += "Suggested Reports for Your Target:\n\n"
         for report in reports_to_file.values():
-            result_text += f"<pre>• {report}\n</pre>"
+            result_text += f"• {report}\n"
         result_text += "\n*Note: This method is based on available data and may not be fully accurate.*\n"
 
         # Use MarkdownV2 and escape special characters
