@@ -2,7 +2,6 @@ import os
 import sys
 import random
 import logging
-import time
 from collections import defaultdict
 from threading import Thread
 import telebot
@@ -120,7 +119,7 @@ def is_user_in_channel(user_id):
     try:
         member = bot.get_chat_member(f"@{FORCE_JOIN_CHANNEL}", user_id)
         return member.status in ['member', 'administrator', 'creator']
-    except telebot.apihelper.ApiException:
+    except telebot.apihelper.ApiTelegramException:
         return False
 
 @bot.message_handler(commands=['start'])
@@ -148,16 +147,16 @@ def analyze(message):
 
     username = message.text.split()[1:]  # Get username from command
     if not username:
-        bot.reply_to(message, "Please provide an Instagram username.")
+        bot.reply_to(message, "😾 Worong method Please send like this <code>/getmeth Username</code> Without @ & < >  Send your Target username.")
         return
 
     username = ' '.join(username)
-    bot.reply_to(message, f"🔍 Scanning profile: {username}. Please wait...")
+    bot.reply_to(message, f"🔍 Scanning Your Target Profile: {username}. Please wait...")
 
     profile_info = get_public_instagram_info(username)
     if profile_info:
         reports_to_file = analyze_profile(profile_info)
-        result_text = f"**Public Information for {username}:\n"
+        result_text = f"**Public Information for {username}:**\n"
         result_text += f"Username: {profile_info.get('username', 'N/A')}\n"
         result_text += f"Full Name: {profile_info.get('full_name', 'N/A')}\n"
         result_text += f"Biography: {profile_info.get('biography', 'N/A')}\n"
@@ -166,16 +165,20 @@ def analyze(message):
         result_text += f"Private Account: {'Yes' if profile_info.get('is_private') else 'No'}\n"
         result_text += f"Posts: {profile_info.get('post_count', 'N/A')}\n"
         result_text += f"External URL: {profile_info.get('external_url', 'N/A')}\n\n"
-        result_text += "Suggested Reports for Your Target:\n"
+        result_text += "Suggested Reports for Your Target:\n\n"
         for report in reports_to_file.values():
-            result_text += f"• {report}\n"
+            result_text += f"<pre>• {report}\n</pre>"
         result_text += "\n*Note: This method is based on available data and may not be fully accurate.*\n"
+
+        # Use MarkdownV2 and escape special characters
+        result_text = result_text.replace('_', '\\_').replace('*', '\\*').replace('[', '\\[').replace(']', '\\]')
+        result_text = result_text.replace('(', '\\(').replace(')', '\\)').replace('`', '\\`')
 
         markup = telebot.types.InlineKeyboardMarkup()
         markup.add(telebot.types.InlineKeyboardButton("Visit Target Profile", url=f"https://instagram.com/{profile_info['username']}"))
         markup.add(telebot.types.InlineKeyboardButton("Developer", url='t.me/ifeelscam'))
 
-        bot.send_message(message.chat.id, result_text, reply_markup=markup, parse_mode='Markdown')
+        bot.send_message(message.chat.id, result_text, reply_markup=markup, parse_mode='MarkdownV2')
     else:
         bot.reply_to(message, f"❌ Profile {username} not found or an error occurred.")
 
