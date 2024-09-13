@@ -184,8 +184,8 @@ def analyze(message):
 
     username = ' '.join(username)
     bot.reply_to(message, f"🔍 Scanning your target profile: {username}. Please wait...")
-
     profile_info = get_public_instagram_info(username)
+
     if profile_info:
         reports_to_file = analyze_profile(profile_info)
         result_text = f"Public Information for {username}:\n"
@@ -221,17 +221,19 @@ def broadcast(message):
         bot.reply_to(message, "You are not authorized to use this command.")
         return
 
-    broadcast_message = message.text[len("/broadcast "):].strip()
-    if not broadcast_message:
-        bot.reply_to(message, "Please provide a message to broadcast.")
+    text = message.text.split(maxsplit=1)
+    if len(text) < 2:
+        bot.reply_to(message, "Please provide the message to broadcast.")
         return
 
-    users = get_all_users()
-    for user in users:
+    broadcast_message = text[1]
+    for user_id in get_all_users():
         try:
-            bot.send_message(user, broadcast_message)
-        except Exception as e:
-            logging.error(f"Failed to send message to {user}: {e}")
+            bot.send_message(user_id, broadcast_message)
+        except telebot.apihelper.ApiTelegramException as e:
+            logging.error(f"Failed to send message to user {user_id}: {e}")
+
+    bot.reply_to(message, "Broadcast message sent.")
 
 @bot.message_handler(commands=['users'])
 def list_users(message):
@@ -299,4 +301,4 @@ if __name__ == "__main__":
     # Start the bot polling in a separate thread
     t = Thread(target=bot.polling)
     t.start()
-        
+    
