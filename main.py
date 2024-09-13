@@ -95,8 +95,27 @@ def analyze_profile(profile_info):
 
     return formatted_reports
 
+# Initialize Instaloader with authentication
+L = instaloader.Instaloader()
+
+INSTAGRAM_USERNAME = os.getenv("INSTAGRAM_USERNAME")
+INSTAGRAM_PASSWORD = os.getenv("INSTAGRAM_PASSWORD")
+
+def login_instaloader():
+    """ Log in to Instagram using credentials. """
+    try:
+        if not L.context.is_logged_in:
+            L.load_session_from_file(INSTAGRAM_USERNAME)
+            if not L.context.is_logged_in:
+                L.login(INSTAGRAM_USERNAME, INSTAGRAM_PASSWORD)
+                L.save_session_to_file()
+    except Exception as e:
+        logging.error(f"Login failed: {e}")
+
+login_instaloader()
+
 def get_public_instagram_info(username):
-    L = instaloader.Instaloader()
+    """ Get public Instagram profile information. """
     try:
         profile = instaloader.Profile.from_username(L.context, username)
         info = {
@@ -160,16 +179,16 @@ def analyze(message):
 
     username = message.text.split()[1:]  # Get username from command
     if not username:
-        bot.reply_to(message, "😾 Worong method Please send like this /getmeth Username without @ & < >  Send your Target username.")
+        bot.reply_to(message, "😾 Wrong method. Please send like this: /getmeth <username> without @ or <>. Send your target username.")
         return
 
     username = ' '.join(username)
-    bot.reply_to(message, f"🔍 Scanning Your Target Profile: {username}. Please wait...")
+    bot.reply_to(message, f"🔍 Scanning your target profile: {username}. Please wait...")
 
     profile_info = get_public_instagram_info(username)
     if profile_info:
         reports_to_file = analyze_profile(profile_info)
-        result_text = f"**Public Information for {username}:**\n"
+        result_text = f"Public Information for {username}:\n"
         result_text += f"Username: {profile_info.get('username', 'N/A')}\n"
         result_text += f"Full Name: {profile_info.get('full_name', 'N/A')}\n"
         result_text += f"Biography: {profile_info.get('biography', 'N/A')}\n"
@@ -179,9 +198,11 @@ def analyze(message):
         result_text += f"Posts: {profile_info.get('post_count', 'N/A')}\n"
         result_text += f"External URL: {profile_info.get('external_url', 'N/A')}\n\n"
         result_text += "Suggested Reports for Your Target:\n"
+
         for report in reports_to_file.values():
             result_text += f"• {report}\n"
-        result_text += "\n*Note: This method is based on available data and may not be fully accurate.*\n"
+
+        result_text += "\nNote: This method is based on available data and may not be fully accurate.\n"
 
         # Escape special characters for MarkdownV2
         result_text = escape_markdown_v2(result_text)
@@ -264,7 +285,7 @@ def help_callback(call):
     help_text = "Here's how you can use this bot:\n\n"
     help_text += "/getmeth <username> - Analyze an Instagram profile.\n"
     help_text += "Make sure you are a member of the channel to use this bot."
-    
+
     # Escape special characters for MarkdownV2
     help_text = escape_markdown_v2(help_text)
 
@@ -274,7 +295,8 @@ def help_callback(call):
 if __name__ == "__main__":
     print("Starting the bot...")
     logging.info("Bot started.")
-    
+
     # Start the bot polling in a separate thread
     t = Thread(target=bot.polling)
     t.start()
+        
