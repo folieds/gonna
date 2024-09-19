@@ -74,7 +74,6 @@ def analyze_profile(profile_info):
         profile_info.get("username", ""),
         profile_info.get("biography", ""),
     ]
-
     for text in profile_texts:
         for category, keywords in report_keywords.items():
             if check_keywords(text, keywords):
@@ -162,7 +161,6 @@ def start(message):
         return
 
     add_user(user_id)
-
     # Create a markup with two buttons in the top row and the third button below
     markup = telebot.types.InlineKeyboardMarkup()
     markup.row(
