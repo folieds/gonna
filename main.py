@@ -254,9 +254,10 @@ def help_handler(call):
     max_message_length = 4096
     for i in range(0, len(help_text), max_message_length):
         chunk = help_text[i:i + max_message_length]
-        bot.answer_callback_query(call.id, text=chunk)
+        bot.send_message(call.message.chat.id, text=chunk, parse_mode='MarkdownV2')
 
-
+    # Optionally, you might want to acknowledge the callback query as well
+    bot.answer_callback_query(call.id, text="Help message sent.")
 
 @bot.callback_query_handler(func=lambda call: call.data == 'more_info')
 def more_info_handler(call):
