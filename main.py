@@ -169,7 +169,7 @@ def start(message):
         telebot.types.InlineKeyboardButton("Help", callback_data='help'),
         telebot.types.InlineKeyboardButton("Developer", url='https://t.me/ifeelscam')
     )
-    markup.add(telebot.types.InlineKeyboardButton("Update Channel", url,'t.me/team_loops'))
+    markup.add(telebot.types.InlineKeyboardButton("Update Channel", url='t.me/team_loops'))
 
     bot.reply_to(message, "Welcome! Use /getmeth <username> to analyze an Instagram profile.", reply_markup=markup)
 
