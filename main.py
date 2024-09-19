@@ -1,5 +1,4 @@
 import os
-import sys
 import random
 import logging
 import re
@@ -164,14 +163,14 @@ def start(message):
 
     add_user(user_id)
 
-    # Create a markup with three buttons
-    markup = telebot.types.InlineKeyboardMarkup(row_width=3)
-    markup.add(
+    # Create a markup with two buttons in the top row and the third button below
+    markup = telebot.types.InlineKeyboardMarkup()
+    markup.row(
         telebot.types.InlineKeyboardButton("Help", callback_data='help'),
-        telebot.types.InlineKeyboardButton("Developer", url='https://t.me/ifeelscam')),
-        telebot.types.InlineKeyboardButton("More Info", callback_data='more_info')  # This is the third button
+        telebot.types.InlineKeyboardButton("Developer", url='https://t.me/ifeelscam')
     )
-    
+    markup.add(telebot.types.InlineKeyboardButton("Update Channel", url,'t.me/team_loops'))
+
     bot.reply_to(message, "Welcome! Use /getmeth <username> to analyze an Instagram profile.", reply_markup=markup)
 
 @bot.message_handler(commands=['getmeth'])
