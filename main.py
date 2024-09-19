@@ -249,7 +249,14 @@ def help_handler(call):
         "3. **/broadcast <message>** - (Admin only) Broadcast a message to all users.\n\n"
         "For more information, contact @ifeelscam."
     )
-    bot.answer_callback_query(call.id, help_text)
+    
+    # Split help text into chunks of 4096 characters or less
+    max_message_length = 4096
+    for i in range(0, len(help_text), max_message_length):
+        chunk = help_text[i:i + max_message_length]
+        bot.answer_callback_query(call.id, text=chunk)
+
+
 
 @bot.callback_query_handler(func=lambda call: call.data == 'more_info')
 def more_info_handler(call):
