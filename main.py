@@ -163,9 +163,15 @@ def start(message):
         return
 
     add_user(user_id)
-    markup = telebot.types.InlineKeyboardMarkup()
-    markup.add(telebot.types.InlineKeyboardButton("Help", callback_data='help'))
-    markup.add(telebot.types.InlineKeyboardButton("Developer", url='https://t.me/ifeelscam'))  # Add developer button
+
+    # Create a markup with three buttons
+    markup = telebot.types.InlineKeyboardMarkup(row_width=3)
+    markup.add(
+        telebot.types.InlineKeyboardButton("Help", callback_data='help'),
+        telebot.types.InlineKeyboardButton("Developer", url='https://t.me/ifeelscam'),
+        telebot.types.InlineKeyboardButton("Test", callback_data='more_info')  # This is the third button
+    )
+    
     bot.reply_to(message, "Welcome! Use /getmeth <username> to analyze an Instagram profile.", reply_markup=markup)
 
 @bot.message_handler(commands=['getmeth'])
@@ -205,7 +211,7 @@ def analyze(message):
 
         markup = telebot.types.InlineKeyboardMarkup()
         markup.add(telebot.types.InlineKeyboardButton("Visit Target Profile", url=f"https://instagram.com/{profile_info['username']}"))
-        markup.add(telebot.types.InlineKeyboardButton("Developer", url='https://t.me/ifeelscam'))  # Add developer button
+        markup.add(telebot.types.InlineKeyboardButton("Developer", url='https://t.me/ifeelscam'))  # Updated developer button
         bot.send_message(message.chat.id, result_text, reply_markup=markup, parse_mode='MarkdownV2')
     else:
         bot.reply_to(message, f"❌ Profile {username} not found or an error occurred.")
@@ -237,8 +243,12 @@ def reload(call):
 
 @bot.callback_query_handler(func=lambda call: call.data == 'help')
 def help_handler(call):
-    bot.answer_callback_query(call.id, "❓ To analyze a profile, use /getmeth <username>.\n🔍 For more info, contact @your_developer_username.")
+    bot.answer_callback_query(call.id, "❓ To analyze a profile, use /getmeth <username>.\n🔍 For more info, contact @ifeelscam.")
+
+@bot.callback_query_handler(func=lambda call: call.data == 'more_info')
+def more_info_handler(call):
+    bot.answer_callback_query(call.id, "ℹ️ More info coming soon...")
 
 # Start bot polling
 bot.polling(none_stop=True)
-    
+        
