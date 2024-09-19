@@ -37,6 +37,8 @@ keep_alive()
 API_TOKEN = os.getenv("API_TOKEN")
 FORCE_JOIN_CHANNEL = os.getenv("FORCE_JOIN_CHANNEL")
 ADMIN_ID = os.getenv("ADMIN_ID")
+INSTAGRAM_USERNAME = os.getenv("INSTAGRAM_USERNAME")
+INSTAGRAM_PASSWORD = os.getenv("INSTAGRAM_PASSWORD")
 
 bot = telebot.TeleBot(API_TOKEN)
 
@@ -98,9 +100,6 @@ def analyze_profile(profile_info):
 # Initialize Instaloader with authentication
 L = instaloader.Instaloader()
 
-INSTAGRAM_USERNAME = os.getenv("INSTAGRAM_USERNAME")
-INSTAGRAM_PASSWORD = os.getenv("INSTAGRAM_PASSWORD")
-
 def login_instaloader():
     """ Log in to Instagram using credentials. """
     try:
@@ -143,7 +142,6 @@ def is_user_in_channel(user_id):
         return False
 
 def escape_markdown_v2(text):
-    # Escape special MarkdownV2 characters
     replacements = {
         '_': r'\_', '*': r'\*', '[': r'\[', ']': r'\]',
         '(': r'\(', ')': r'\)', '~': r'\~', '`': r'\`',
@@ -167,8 +165,7 @@ def start(message):
     add_user(user_id)
     markup = telebot.types.InlineKeyboardMarkup()
     markup.add(telebot.types.InlineKeyboardButton("Help", callback_data='help'))
-    markup.add(telebot.types.InlineKeyboardButton("Update Channel", url='https://t.me/team_loops'))
-    markup.add(telebot.types.InlineKeyboardButton("Developer", url='https://t.me/ifeelscam'))  # Developer button
+    markup.add(telebot.types.InlineKeyboardButton("Developer", url='https://t.me/ifeelscam'))  # Add developer button
     bot.reply_to(message, "Welcome! Use /getmeth <username> to analyze an Instagram profile.", reply_markup=markup)
 
 @bot.message_handler(commands=['getmeth'])
@@ -178,9 +175,9 @@ def analyze(message):
         bot.reply_to(message, f"Please join @{FORCE_JOIN_CHANNEL} to use this bot.")
         return
 
-    username = message.text.split()[1:]  # Get username from command
+    username = message.text.split()[1:]
     if not username:
-        bot.reply_to(message, "😾 Wrong method. Please send like this: /getmeth <username> without @ or <>. Send your target username.")
+        bot.reply_to(message, "😾 Wrong method. Please send like this: /getmeth <username> without @ or <>.")
         return
 
     username = ' '.join(username)
@@ -204,20 +201,17 @@ def analyze(message):
             result_text += f"• {report}\n"
 
         result_text += "\nNote: This method is based on available data and may not be fully accurate.\n"
-
-        # Escape special characters for MarkdownV2
         result_text = escape_markdown_v2(result_text)
 
         markup = telebot.types.InlineKeyboardMarkup()
         markup.add(telebot.types.InlineKeyboardButton("Visit Target Profile", url=f"https://instagram.com/{profile_info['username']}"))
-        markup.add(telebot.types.InlineKeyboardButton("Developer", url='https://t.me/ifeelscam'))  # Developer button
-
+        markup.add(telebot.types.InlineKeyboardButton("Developer", url='https://t.me/ifeelscam'))  # Add developer button
         bot.send_message(message.chat.id, result_text, reply_markup=markup, parse_mode='MarkdownV2')
     else:
         bot.reply_to(message, f"❌ Profile {username} not found or an error occurred.")
 
 @bot.message_handler(commands=['broadcast'])
-def broadcast_message(message):
+def broadcast(message):
     if str(message.chat.id) != ADMIN_ID:
         bot.reply_to(message, "❌ You are not authorized to use this command.")
         return
@@ -225,20 +219,26 @@ def broadcast_message(message):
     try:
         text = message.text.split(' ', 1)[1]
     except IndexError:
-        bot.reply_to(message, "❌ Please provide the message text after the command.")
+        bot.reply_to(message, "❌ Please provide a message to broadcast.")
         return
 
-    sent_count = 0
     for user_id in get_all_users():
         try:
             bot.send_message(user_id, text)
-            sent_count += 1
         except Exception as e:
-            logging.error(f"Failed to send message to {user_id}: {e}")
-            remove_user(user_id)
+            logging.error(f"Failed to send broadcast to user {user_id}: {e}")
 
-    bot.reply_to(message, f"Message broadcasted to {sent_count} users.")
+@bot.callback_query_handler(func=lambda call: call.data == 'reload')
+def reload(call):
+    if is_user_in_channel(call.message.chat.id):
+        bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="✅ You are now verified. Use /start to continue.")
+    else:
+        bot.answer_callback_query(call.id, "❌ You are not a member yet! Please join the channel.")
 
-# Start the bot
-if __name__ == '__main__':
-    bot.polling(none_stop=True)
+@bot.callback_query_handler(func=lambda call: call.data == 'help')
+def help_handler(call):
+    bot.answer_callback_query(call.id, "❓ To analyze a profile, use /getmeth <username>.\n🔍 For more info, contact @your_developer_username.")
+
+# Start bot polling
+bot.polling(none_stop=True)
+    
