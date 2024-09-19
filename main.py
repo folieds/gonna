@@ -168,8 +168,8 @@ def start(message):
     markup = telebot.types.InlineKeyboardMarkup(row_width=3)
     markup.add(
         telebot.types.InlineKeyboardButton("Help", callback_data='help'),
-        telebot.types.InlineKeyboardButton("Developer", url='https://t.me/ifeelscam'),
-        telebot.types.InlineKeyboardButton("Test", callback_data='more_info')  # This is the third button
+        telebot.types.InlineKeyboardButton("Developer", url='https://t.me/ifeelscam')),
+        telebot.types.InlineKeyboardButton("More Info", callback_data='more_info')  # This is the third button
     )
     
     bot.reply_to(message, "Welcome! Use /getmeth <username> to analyze an Instagram profile.", reply_markup=markup)
@@ -243,7 +243,14 @@ def reload(call):
 
 @bot.callback_query_handler(func=lambda call: call.data == 'help')
 def help_handler(call):
-    bot.answer_callback_query(call.id, "❓ To analyze a profile, use /getmeth <username>.\n🔍 For more info, contact @ifeelscam.")
+    help_text = (
+        "❓ **Help Menu:**\n\n"
+        "1. **/start** - Start the bot and get the initial message.\n"
+        "2. **/getmeth <username>** - Analyze an Instagram profile. Replace `<username>` with the target's Instagram username.\n"
+        "3. **/broadcast <message>** - (Admin only) Broadcast a message to all users.\n\n"
+        "For more information, contact @ifeelscam."
+    )
+    bot.answer_callback_query(call.id, help_text)
 
 @bot.callback_query_handler(func=lambda call: call.data == 'more_info')
 def more_info_handler(call):
@@ -251,4 +258,3 @@ def more_info_handler(call):
 
 # Start bot polling
 bot.polling(none_stop=True)
-        
