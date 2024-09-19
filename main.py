@@ -102,13 +102,26 @@ INSTAGRAM_USERNAME = os.getenv("INSTAGRAM_USERNAME")
 INSTAGRAM_PASSWORD = os.getenv("INSTAGRAM_PASSWORD")
 
 def login_instaloader():
-    """ Log in to Instagram using credentials. """
+    """ Log in to Instagram using credentials, with session management. """
     try:
+        # Check if we are already logged in by loading the session
         if not L.context.is_logged_in:
-            L.load_session_from_file(INSTAGRAM_USERNAME)
+            # Try loading an existing session from a file
+            try:
+                L.load_session_from_file(INSTAGRAM_USERNAME)
+                logging.info(f"Session loaded for {INSTAGRAM_USERNAME}")
+            except FileNotFoundError:
+                logging.warning(f"No session found for {INSTAGRAM_USERNAME}. Proceeding with login...")
+
+            # If not logged in, perform a login
             if not L.context.is_logged_in:
                 L.login(INSTAGRAM_USERNAME, INSTAGRAM_PASSWORD)
-                L.save_session_to_file()
+                L.save_session_to_file()  # Save session for future use
+                logging.info(f"Logged in and session saved for {INSTAGRAM_USERNAME}")
+        else:
+            logging.info(f"Already logged in as {INSTAGRAM_USERNAME}")
+    except instaloader.exceptions.TwoFactorAuthRequiredException:
+        logging.error("2FA is required. Please handle 2FA.")
     except Exception as e:
         logging.error(f"Login failed: {e}")
 
@@ -143,7 +156,6 @@ def is_user_in_channel(user_id):
         return False
 
 def escape_markdown_v2(text):
-    # Escape special MarkdownV2 characters
     replacements = {
         '_': r'\_', '*': r'\*', '[': r'\[', ']': r'\]',
         '(': r'\(', ')': r'\)', '~': r'\~', '`': r'\`',
@@ -164,7 +176,7 @@ def start(message):
         bot.reply_to(message, f"Please join @{FORCE_JOIN_CHANNEL} to use this bot.", reply_markup=markup)
         return
 
-    add_user(user_id)  # Add user to the list
+    add_user(user_id)
     markup = telebot.types.InlineKeyboardMarkup()
     markup.add(telebot.types.InlineKeyboardButton("Help", callback_data='help'))
     markup.add(telebot.types.InlineKeyboardButton("Update Channel", url='t.me/team_loops'))
@@ -177,9 +189,9 @@ def analyze(message):
         bot.reply_to(message, f"Please join @{FORCE_JOIN_CHANNEL} to use this bot.")
         return
 
-    username = message.text.split()[1:]  # Get username from command
+    username = message.text.split()[1:]
     if not username:
-        bot.reply_to(message, "😾 Wrong method. Please send like this: /getmeth <username> without @ or <>. Send your target username.")
+        bot.reply_to(message, "😾 Wrong method. Please send like this: /getmeth <username> without @ or <>.")
         return
 
     username = ' '.join(username)
@@ -203,102 +215,41 @@ def analyze(message):
             result_text += f"• {report}\n"
 
         result_text += "\nNote: This method is based on available data and may not be fully accurate.\n"
-
-        # Escape special characters for MarkdownV2
         result_text = escape_markdown_v2(result_text)
 
         markup = telebot.types.InlineKeyboardMarkup()
-        markup.add(telebot.types.InlineKeyboardButton("Visit Target Profile", url=f"https://instagram.com/{profile_info['username']}"))
-        markup.add(telebot.types.InlineKeyboardButton("Developer", url='t.me/ifeelscam'))
-
-        bot.send_message(message.chat.id, result_text, reply_markup=markup, parse_mode='MarkdownV2')
+        markup.add(telebot.types.InlineKeyboardButton("Delete Chat", callback_data='delete_chat'))
+        bot.reply_to(message, result_text, parse_mode="MarkdownV2", reply_markup=markup)
     else:
-        bot.reply_to(message, f"❌ Profile {username} not found or an error occurred.")
-
-@bot.message_handler(commands=['broadcast'])
-def broadcast(message):
-    if str(message.chat.id) != ADMIN_ID:
-        bot.reply_to(message, "You are not authorized to use this command.")
-        return
-
-    text = message.text.split(maxsplit=1)
-    if len(text) < 2:
-        bot.reply_to(message, "Please provide the message to broadcast.")
-        return
-
-    broadcast_message = text[1]
-    for user_id in get_all_users():
-        try:
-            bot.send_message(user_id, broadcast_message)
-        except telebot.apihelper.ApiTelegramException as e:
-            logging.error(f"Failed to send message to user {user_id}: {e}")
-
-    bot.reply_to(message, "Broadcast message sent.")
-
-@bot.message_handler(commands=['users'])
-def list_users(message):
-    if str(message.chat.id) != ADMIN_ID:
-        bot.reply_to(message, "You are not authorized to use this command.")
-        return
-
-    users = get_all_users()
-    if users:
-        user_list = "\n".join([f"User ID: {user_id}" for user_id in users])
-        bot.reply_to(message, f"List of Users:\n{user_list}")
-    else:
-        bot.reply_to(message, "No users found.")
-
-@bot.message_handler(commands=['remove_user'])
-def remove_user_command(message):
-    if str(message.chat.id) != ADMIN_ID:
-        bot.reply_to(message, "You are not authorized to use this command.")
-        return
-
-    user_id = message.text.split()[1:]  # Get user ID from command
-    if not user_id:
-        bot.reply_to(message, "Please provide a user ID.")
-        return
-
-    user_id = int(user_id[0])
-    remove_user(user_id)
-    bot.reply_to(message, f"User ID {user_id} has been removed.")
-
-@bot.message_handler(commands=['restart'])
-def restart_bot(message):
-    if str(message.chat.id) != ADMIN_ID:
-        bot.reply_to(message, "You are not authorized to use this command.")
-        return
-
-    bot.reply_to(message, "Bot is restarting...")
-    logging.info("Bot is restarting...")
-    os.execv(sys.executable, ['python'] + sys.argv)
+        bot.reply_to(message, "❌ Profile not found or it's private.")
 
 @bot.callback_query_handler(func=lambda call: call.data == 'reload')
-def reload_callback(call):
-    user_id = call.from_user.id
+def handle_reload(call):
+    user_id = call.message.chat.id
     if is_user_in_channel(user_id):
-        bot.answer_callback_query(call.id, text="You are now authorized to use the bot!")
-        bot.send_message(user_id, "You are now authorized to use the bot. Use /getmeth <username> to analyze an Instagram profile.")
+        bot.edit_message_text(chat_id=user_id, message_id=call.message.message_id, text="Welcome! You can now use the bot.")
     else:
-        bot.answer_callback_query(call.id, text="You are not a member of the channel yet. Please join the channel first.")
+        bot.answer_callback_query(call.id, "You haven't joined the channel yet. Please join to continue.")
 
-@bot.callback_query_handler(func=lambda call: call.data == 'help')
-def help_callback(call):
-    help_text = "Here's how you can use this bot:\n\n"
-    help_text += "/getmeth <username> - Analyze an Instagram profile.\n"
-    help_text += "Make sure you are a member of the channel to use this bot."
+@bot.callback_query_handler(func=lambda call: call.data == 'delete_chat')
+def handle_delete_chat(call):
+    user_id = call.message.chat.id
+    bot.delete_message(chat_id=user_id, message_id=call.message.message_id)
 
-    # Escape special characters for MarkdownV2
-    help_text = escape_markdown_v2(help_text)
+@bot.message_handler(commands=['admin_broadcast'])
+def admin_broadcast(message):
+    if message.from_user.id != int(ADMIN_ID):
+        return
 
-    bot.answer_callback_query(call.id, text=escape_markdown_v2(help_text))
-    bot.send_message(call.from_user.id, help_text, parse_mode='MarkdownV2')
+    text = message.text.split(' ', 1)[1]
+    all_users = get_all_users()
 
-if __name__ == "__main__":
-    print("Starting the bot...")
-    logging.info("Bot started.")
+    for user_id in all_users:
+        try:
+            bot.send_message(user_id, text)
+        except:
+            pass
 
-    # Start the bot polling in a separate thread
-    t = Thread(target=bot.polling)
-    t.start()
-    
+if __name__ == '__main__':
+    bot.polling()
+        
